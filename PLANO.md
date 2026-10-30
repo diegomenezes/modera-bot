@@ -60,14 +60,24 @@ reaproveitado, adaptado para várias contas. Funciona assim hoje:
 
 ## Fases
 
-1. **Base** — login, workspace, Postgres, painel admin (criar, bloquear, redefinir senha). ← atual
+1. **Base** — login, workspace, Postgres, painel admin (criar, bloquear, redefinir senha). ✓
 2. **Conexão** — criar instância, QR e código de pareamento, lista de grupos com indicação de admin,
-   escolher grupo de aviso sem digitar ID, webhook por instância.
+   escolher grupo de aviso sem digitar ID, webhook por instância. ✓ (código de pareamento ainda não
+   testado com número real: só pedir código para número do próprio usuário)
 3. **Moderação** — portar o motor para workspaces; migrar os dados do Diego como primeiro workspace;
    repasse de mensagens para o gerador.
 4. **Desligar** a moderação do gerador de reels.
 5. **Teste com 2–3 amigos.**
 6. **Cobrança** — Pix manual liberado pelo admin; depois assinatura (Asaas ou Mercado Pago).
+
+## Notas da fase 2
+
+- Instância na Evolution: `mb-<hex>`; webhook `APP_URL/api/webhook/<token>` com `MESSAGES_UPSERT` e `CONNECTION_UPDATE`.
+- Código de pareamento: a Evolution só devolve quando a instância nasce com `number`; por isso o fluxo
+  apaga e recria a instância.
+- Admin do grupo: compara o telefone do `ownerJid` com `id`/`phoneNumber`/`jid` dos participantes.
+- Nunca testar apontando para a instância `Diego` pela tela WhatsApp: `refreshStatus` pode
+  reconfigurar o webhook e derrubar a moderação do gerador.
 
 ## Pendências do Diego
 

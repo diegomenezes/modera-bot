@@ -11,6 +11,8 @@ const pg = new EmbeddedPostgres({
   password: "postgres",
   port: 5433,
   persistent: true,
+  // sem isso o Windows cria o banco em WIN1252 e nomes de grupo com emoji quebram
+  initdbFlags: ["--encoding=UTF8", "--locale=C"],
 });
 
 if (fresh) await pg.initialise();

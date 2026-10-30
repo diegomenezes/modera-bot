@@ -86,6 +86,9 @@ model Workspace {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   memberships Membership[]
+  instance    WhatsappInstance?
+  groups      Group[]
+  settings    ModerationSettings?
 }
 
 model Membership {
@@ -99,4 +102,44 @@ model Membership {
 
   @@unique([userId, workspaceId])
   @@index([workspaceId])
+}
+
+// Um número de WhatsApp por conta, numa instância própria da Evolution.
+model WhatsappInstance {
+  id           String    @id @default(cuid())
+  workspaceId  String    @unique
+  name         String    @unique
+  webhookToken String    @unique
+  status       String    @default("disconnected")
+  phone        String?
+  profileName  String?
+  connectedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Group {
+  id          String    @id @default(cuid())
+  workspaceId String
+  remoteJid   String
+  name        String
+  size        Int       @default(0)
+  botIsAdmin  Boolean   @default(false)
+  moderated   Boolean   @default(false)
+  syncedAt    DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, remoteJid])
+}
+
+model ModerationSettings {
+  workspaceId    String    @id
+  enabled        Boolean   @default(true)
+  deleteMode     Boolean   @default(false)
+  notifyGroupJid String    @default("")
+  announceDelete Boolean   @default(false)
+  announceText   String    @default("*Mensagem apagada automaticamente* pelo Modera Bot. Se você acha que foi um engano, fale com um dos admins e leia as regras na descrição do grupo.")
+  updatedAt      DateTime  @updatedAt
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

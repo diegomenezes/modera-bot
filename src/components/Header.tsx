@@ -19,9 +19,17 @@ export async function Header() {
               Admin
             </Link>
           ) : (
-            <Link href="/" className="nav-link">
-              Painel
-            </Link>
+            <>
+              <Link href="/" className="nav-link">
+                Painel
+              </Link>
+              <Link href="/whatsapp" className="nav-link">
+                WhatsApp
+              </Link>
+              <Link href="/grupos" className="nav-link">
+                Grupos
+              </Link>
+            </>
           )}
           <Link href="/conta" className="nav-link">
             Minha conta

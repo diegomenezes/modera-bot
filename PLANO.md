@@ -41,7 +41,9 @@ reaproveitado, adaptado para várias contas. Funciona assim hoje:
 - Apps fora do Docker (PM2) são publicados com uma stack de Nginx que repassa para
   `host.docker.internal:<porta>`. Ex.: `/root/reels.yaml` + `/root/reels-nginx.conf` → porta 3010.
 - Modera Bot: `modera.designcreator.cloud` → stack `modera` (nginx) → PM2 porta **3020**. Arquivos em `deploy/`.
-- Já existe uma stack `postgres` no Swarm; o Modera Bot usa um banco e um usuário próprios dentro dela.
+- O Postgres do Swarm (`postgres_postgres`) não publica porta, e mexer nele derruba n8n/typebot. O Modera Bot
+  tem um Postgres próprio: contêiner `modera-postgres` (postgres:17-alpine, volume `modera_pgdata`),
+  ouvindo só em `127.0.0.1:5433`.
 - Gerador de reels fica em `/opt/gerador-reels`; o Modera Bot vai em `/opt/modera-bot`.
 
 ## Decisões

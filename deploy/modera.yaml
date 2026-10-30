@@ -1,0 +1,26 @@
+# Stack do Traefik para modera.designcreator.cloud. Mesmo esquema do /root/reels.yaml:
+# um nginx pequeno recebe pelo Traefik e repassa para o PM2 na porta 3020.
+# Ativar na VPS: docker stack deploy -c /opt/modera-bot/deploy/modera.yaml modera
+version: "3.8"
+
+services:
+  modera:
+    image: nginx:alpine
+    volumes:
+      - /opt/modera-bot/deploy/modera-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - LeilaoMagicoNet
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.modera.rule=Host(`modera.designcreator.cloud`)
+        - traefik.http.routers.modera.entrypoints=websecure
+        - traefik.http.routers.modera.tls=true
+        - traefik.http.routers.modera.tls.certresolver=letsencryptresolver
+        - traefik.http.services.modera.loadbalancer.server.port=80
+
+networks:
+  LeilaoMagicoNet:
+    external: true

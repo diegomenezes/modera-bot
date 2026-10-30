@@ -4,8 +4,9 @@ import { setBanned } from "./actions";
 import { CreateClientForm, ResetPasswordForm } from "./forms";
 
 export default async function AdminPage() {
-  const session = await requireAdmin();
+  await requireAdmin();
   const users = await prisma.user.findMany({
+    where: { OR: [{ role: null }, { role: { not: "admin" } }] },
     orderBy: { createdAt: "desc" },
     include: { memberships: { include: { workspace: true } } },
   });
@@ -27,8 +28,10 @@ export default async function AdminPage() {
 
       <section className="space-y-3">
         <h2 className="font-semibold">Clientes ({users.length})</h2>
+        {users.length === 0 && (
+          <p className="text-sm text-[var(--ink-soft)]">Nenhum cliente ainda.</p>
+        )}
         {users.map((user) => {
-          const self = user.id === session.user.id;
           const workspaces = user.memberships.map((m) => m.workspace.name).join(", ");
           return (
             <article key={user.id} className="card space-y-3 p-5">
@@ -36,7 +39,6 @@ export default async function AdminPage() {
                 <div className="min-w-0">
                   <p className="font-semibold">
                     {user.name}{" "}
-                    {user.role === "admin" && <span className="badge">admin</span>}{" "}
                     {user.banned && <span className="badge badge-warn">bloqueado</span>}
                   </p>
                   <p className="break-all text-sm text-[var(--ink-soft)]">{user.email}</p>
@@ -45,16 +47,14 @@ export default async function AdminPage() {
                     {user.createdAt.toLocaleDateString("pt-BR")}
                   </p>
                 </div>
-                {!self && (
-                  <form action={setBanned.bind(null, user.id, !user.banned)}>
-                    <button
-                      type="submit"
-                      className={`btn text-sm ${user.banned ? "btn-secondary" : "btn-danger"}`}
-                    >
-                      {user.banned ? "Desbloquear" : "Bloquear acesso"}
-                    </button>
-                  </form>
-                )}
+                <form action={setBanned.bind(null, user.id, !user.banned)}>
+                  <button
+                    type="submit"
+                    className={`btn text-sm ${user.banned ? "btn-secondary" : "btn-danger"}`}
+                  >
+                    {user.banned ? "Desbloquear" : "Bloquear acesso"}
+                  </button>
+                </form>
               </div>
               <details>
                 <summary className="cursor-pointer text-sm text-[var(--ink-soft)]">

@@ -28,14 +28,16 @@ export const requireAdmin = cache(async () => {
   return session;
 });
 
+// Admin só administra: não tem conta de cliente e não abre as telas de cliente.
 export const requireWorkspace = cache(async () => {
   const session = await requireUser();
+  if (isAdmin(session)) redirect("/admin");
   const membership = await prisma.membership.findFirst({
     where: { userId: session.user.id },
     include: { workspace: true },
     orderBy: { createdAt: "asc" },
   });
-  if (!membership) redirect(isAdmin(session) ? "/admin" : "/sem-conta");
+  if (!membership) redirect("/sem-conta");
   return {
     session,
     workspace: membership.workspace,

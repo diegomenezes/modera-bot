@@ -14,12 +14,13 @@ export async function Header() {
       </Link>
       {session && (
         <nav className="flex flex-wrap items-center gap-4 text-sm">
-          <Link href="/" className="nav-link">
-            Painel
-          </Link>
-          {isAdmin(session) && (
+          {isAdmin(session) ? (
             <Link href="/admin" className="nav-link">
               Admin
+            </Link>
+          ) : (
+            <Link href="/" className="nav-link">
+              Painel
             </Link>
           )}
           <Link href="/conta" className="nav-link">

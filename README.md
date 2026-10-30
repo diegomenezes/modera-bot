@@ -8,7 +8,7 @@ Moderação de links em grupos de WhatsApp, com login por cliente. Plano e conte
 npm install
 npm run db:dev          # Postgres local na porta 5433 (deixe aberto)
 npx prisma migrate dev  # em outro terminal
-npm run admin:create -- voce@email.com uma-senha-forte "Seu Nome"
+npm run admin:create -- voce@email.com 'uma-senha-forte' "Seu Nome"   # admin não vira cliente
 npm run dev
 ```
 

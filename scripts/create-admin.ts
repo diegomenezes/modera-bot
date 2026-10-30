@@ -1,14 +1,15 @@
 // Cria o primeiro admin (o cadastro pelo site é desligado).
-// Uso: npm run admin:create -- <email> <senha> "<nome>" ["<nome da conta>"]
+// O admin só administra: não ganha conta de cliente.
+// Uso: npm run admin:create -- <email> <senha> "<nome>"
 import "dotenv/config";
 import { auth } from "../src/lib/auth";
 import { prisma } from "../src/lib/db";
 
 async function main() {
-  const [rawEmail, password, name, workspaceName] = process.argv.slice(2);
+  const [rawEmail, password, name] = process.argv.slice(2);
   const email = rawEmail?.trim().toLowerCase();
   if (!email || !password || !name) {
-    console.error('Uso: npm run admin:create -- <email> <senha> "<nome>" ["<nome da conta>"]');
+    console.error('Uso: npm run admin:create -- <email> <senha> "<nome>"');
     process.exit(1);
   }
   if (password.length < 8) {
@@ -34,13 +35,7 @@ async function main() {
     accountId: user.id,
     password: await ctx.password.hash(password),
   });
-  await prisma.workspace.create({
-    data: {
-      name: workspaceName || name,
-      memberships: { create: { userId: user.id, role: "owner" } },
-    },
-  });
-  console.log(`Admin ${email} criado com a conta "${workspaceName || name}".`);
+  console.log(`Admin ${email} criado.`);
 }
 
 main()

@@ -1,10 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { reopenOnboarding } from "@/app/comecar/actions";
 import { requireWorkspace } from "@/lib/dal";
 import { prisma } from "@/lib/db";
+import { getOnboarding } from "@/lib/onboarding";
 import { refreshStatus } from "@/lib/whatsapp";
 
-export default async function PainelPage() {
+export default async function PainelPage({ searchParams }: PageProps<"/">) {
   const { session, workspace } = await requireWorkspace();
+  const onboarding = await getOnboarding(workspace.id);
+  // primeiro acesso: vai direto para o passo a passo (o cliente pode fechar)
+  if (!onboarding.dismissed && !onboarding.complete) redirect("/comecar");
+  const { passo } = await searchParams;
   const [status, moderatedCount, settings, unknownCount] = await Promise.all([
     refreshStatus(workspace.id).catch(() => null),
     prisma.group.count({ where: { workspaceId: workspace.id, moderated: true } }),
@@ -54,6 +61,24 @@ export default async function PainelPage() {
         <p className="text-sm text-[var(--ink-soft)]">Olá, {session.user.name}</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">{workspace.name}</h1>
       </section>
+
+      {!onboarding.complete && (
+        <section className="card flex flex-wrap items-center justify-between gap-3 p-5">
+          <div>
+            <p className="font-semibold">Passo a passo</p>
+            <p className="text-sm text-[var(--ink-soft)]">
+              {passo === "fechado" ? "Passo a passo fechado. " : ""}
+              {onboarding.steps.filter((s) => s.done).length} de {onboarding.steps.length} passos
+              feitos. Próximo: {onboarding.steps[onboarding.current]?.title}.
+            </p>
+          </div>
+          <form action={reopenOnboarding}>
+            <button type="submit" className="btn btn-primary text-sm">
+              Abrir passo a passo
+            </button>
+          </form>
+        </section>
+      )}
 
       {dropped && (
         <section

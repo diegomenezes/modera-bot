@@ -1,10 +1,23 @@
 import Link from "next/link";
 import { signOut, stopImpersonating } from "@/app/actions";
 import { getSession, isAdmin } from "@/lib/dal";
+import { prisma } from "@/lib/db";
+import { getOnboarding } from "@/lib/onboarding";
+import { OnboardingBanner } from "./OnboardingBanner";
 
 export async function Header() {
   const session = await getSession();
   const impersonating = !!session?.session.impersonatedBy;
+
+  let onboarding: Awaited<ReturnType<typeof getOnboarding>> | null = null;
+  if (session && !isAdmin(session)) {
+    const membership = await prisma.membership.findFirst({
+      where: { userId: session.user.id },
+      select: { workspaceId: true },
+    });
+    if (membership) onboarding = await getOnboarding(membership.workspaceId);
+  }
+  const showOnboarding = onboarding && !onboarding.dismissed && !onboarding.complete;
 
   return (
     <>
@@ -25,6 +38,13 @@ export async function Header() {
             </form>
           </div>
         </div>
+      )}
+      {showOnboarding && onboarding && (
+        <OnboardingBanner
+          step={onboarding.current + 1}
+          total={onboarding.steps.length}
+          title={onboarding.steps[onboarding.current].title}
+        />
       )}
       <header className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-5">
         <Link href="/" className="flex items-center gap-2 text-xl font-semibold">

@@ -21,6 +21,12 @@ function done(message?: string): FormState {
   return message ? { ok: message } : undefined;
 }
 
+// o passo a passo considera o passo de teste feito
+async function markTested(workspaceId: string) {
+  await prisma.workspace.update({ where: { id: workspaceId }, data: { testedAt: new Date() } });
+  revalidatePath("/comecar");
+}
+
 export async function saveSettings(_prev: FormState, form: FormData): Promise<FormState> {
   const { workspace } = await requireWorkspace();
   await ensureSettings(workspace.id);
@@ -54,7 +60,9 @@ export async function sendTestAlert(): Promise<FormState> {
     settings.notifyGroupJid,
     ["Teste do Modera Bot", "", "Se esta mensagem chegou, os avisos vão chegar aqui."],
   );
-  return failure ? { error: failure } : { ok: "Mensagem de teste enviada para o grupo de aviso." };
+  if (failure) return { error: failure };
+  await markTested(workspace.id);
+  return { ok: "Mensagem de teste enviada para o grupo de aviso." };
 }
 
 // Manda uma frase no grupo de aviso, apaga para todos e manda a mensagem pós-exclusão.
@@ -83,6 +91,7 @@ export async function testDelete(): Promise<FormState> {
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
   }
+  await markTested(workspace.id);
   return {
     ok: "A frase de teste foi apagada e a mensagem pós-exclusão foi enviada. Confira no grupo de aviso.",
   };

@@ -80,21 +80,24 @@ model Verification {
 
 // A "conta" do cliente. Todo dado de moderação pertence a um workspace.
 model Workspace {
-  id          String              @id @default(cuid())
-  name        String
-  active      Boolean             @default(true)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  memberships Membership[]
-  instance    WhatsappInstance?
-  groups      Group[]
-  settings    ModerationSettings?
-  blocked     BlockedDomain[]
-  allowed     AllowedDomain[]
-  invites     AllowedInvite[]
-  adminLinks  AdminLink[]
-  unknown     UnknownLink[]
-  events      ModerationEvent[]
+  id                    String              @id @default(cuid())
+  name                  String
+  active                Boolean             @default(true)
+  // passo a passo do primeiro acesso: quando o cliente fechou e quando testou o envio
+  onboardingDismissedAt DateTime?
+  testedAt              DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  memberships           Membership[]
+  instance              WhatsappInstance?
+  groups                Group[]
+  settings              ModerationSettings?
+  blocked               BlockedDomain[]
+  allowed               AllowedDomain[]
+  invites               AllowedInvite[]
+  adminLinks            AdminLink[]
+  unknown               UnknownLink[]
+  events                ModerationEvent[]
 }
 
 model Membership {

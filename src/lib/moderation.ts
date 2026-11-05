@@ -13,6 +13,22 @@ import { syncAllInviteLinks } from "./whatsapp";
 // e usa a instância da Evolution dessa conta.
 
 const DEFAULT_BLOCKED = ["chat.whatsapp.com"];
+
+// Lista que o admin pode aplicar ao criar um cliente (checkbox no Admin).
+export const STANDARD_BLOCKED = [
+  "a.co",
+  "aliexpress.com",
+  "amazon.com.br",
+  "bonifiq.com.br",
+  "br.shp.ee",
+  "chat.whatsapp.com",
+  "meli.la",
+  "mercadolivre.com.br",
+  "shopee.com.br",
+  "shp.ee",
+  "vm.tiktok.com",
+  "whatsapp.com",
+];
 const ADMIN_LINK_MS = 72 * 60 * 60 * 1000;
 const RETRY_DELAYS_MIN = [1, 2, 5, 10, 30, 60, 120, 240];
 const RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;

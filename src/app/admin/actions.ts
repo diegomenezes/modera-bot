@@ -9,6 +9,7 @@ import { auth } from "@/lib/auth";
 import { requireAdmin } from "@/lib/dal";
 import { prisma } from "@/lib/db";
 import { deleteInstance } from "@/lib/evolution";
+import { ensureSettings, STANDARD_BLOCKED } from "@/lib/moderation";
 
 function text(form: FormData, name: string) {
   return String(form.get(name) ?? "").trim();
@@ -51,13 +52,21 @@ export async function createClient(
     return { error: apiMessage(err, "Não consegui criar o usuário.") };
   }
 
+  const withDefaults = form.get("standardBlocked") === "on";
   try {
-    await prisma.workspace.create({
+    const workspace = await prisma.workspace.create({
       data: {
         name: workspaceName,
         memberships: { create: { userId, role: "owner" } },
       },
     });
+    await ensureSettings(workspace.id);
+    if (withDefaults) {
+      await prisma.blockedDomain.createMany({
+        data: STANDARD_BLOCKED.map((domain) => ({ workspaceId: workspace.id, domain })),
+        skipDuplicates: true,
+      });
+    }
   } catch (err) {
     // sem conta o login não serve para nada: desfaz para poder tentar de novo
     await prisma.user.delete({ where: { id: userId } }).catch(() => {});
@@ -65,7 +74,9 @@ export async function createClient(
   }
 
   revalidatePath("/admin");
-  return { ok: `${name} criado. Envie o e-mail e a senha provisória para a pessoa.` };
+  return {
+    ok: `${name} criado${withDefaults ? ` com ${STANDARD_BLOCKED.length} domínios bloqueados padrão` : ""}. Envie o e-mail e a senha provisória para a pessoa.`,
+  };
 }
 
 export async function setBanned(userId: string, banned: boolean) {

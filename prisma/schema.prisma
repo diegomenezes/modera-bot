@@ -80,15 +80,21 @@ model Verification {
 
 // A "conta" do cliente. Todo dado de moderação pertence a um workspace.
 model Workspace {
-  id          String       @id @default(cuid())
+  id          String              @id @default(cuid())
   name        String
-  active      Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  active      Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
   memberships Membership[]
   instance    WhatsappInstance?
   groups      Group[]
   settings    ModerationSettings?
+  blocked     BlockedDomain[]
+  allowed     AllowedDomain[]
+  invites     AllowedInvite[]
+  adminLinks  AdminLink[]
+  unknown     UnknownLink[]
+  events      ModerationEvent[]
 }
 
 model Membership {
@@ -135,11 +141,100 @@ model Group {
 
 model ModerationSettings {
   workspaceId    String    @id
-  enabled        Boolean   @default(true)
+  enabled        Boolean   @default(false)
   deleteMode     Boolean   @default(false)
   notifyGroupJid String    @default("")
   announceDelete Boolean   @default(false)
   announceText   String    @default("*Mensagem apagada automaticamente* pelo Modera Bot. Se você acha que foi um engano, fale com um dos admins e leia as regras na descrição do grupo.")
   updatedAt      DateTime  @updatedAt
   workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model BlockedDomain {
+  id          String    @id @default(cuid())
+  workspaceId String
+  domain      String
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, domain])
+}
+
+model AllowedDomain {
+  id          String    @id @default(cuid())
+  workspaceId String
+  domain      String
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, domain])
+}
+
+// Convites chat.whatsapp.com liberados um a um.
+model AllowedInvite {
+  id          String    @id @default(cuid())
+  workspaceId String
+  url         String
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, url])
+}
+
+// Link que um admin do grupo mandou: fica liberado por 72 horas.
+model AdminLink {
+  id          String    @id @default(cuid())
+  workspaceId String
+  urlKey      String
+  sample      String
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, urlKey])
+  @@index([expiresAt])
+}
+
+model UnknownLink {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  domain        String
+  sample        String
+  groupName     String
+  author        String
+  text          String
+  count         Int       @default(1)
+  lastMessageId String
+  firstSeenAt   DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, domain])
+  @@index([workspaceId, lastSeenAt])
+}
+
+model ModerationEvent {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  groupJid       String
+  waMessageId    String
+  groupName      String
+  author         String
+  authorName     String    @default("")
+  authorPhone    String    @default("")
+  participant    String    @default("")
+  participantAlt String    @default("")
+  text           String
+  matchedUrl     String
+  action         String
+  detail         String?
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime?
+  messageAt      DateTime
+  createdAt      DateTime  @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, groupJid, waMessageId])
+  @@index([workspaceId, createdAt])
+  @@index([action, nextAttemptAt])
 }

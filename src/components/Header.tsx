@@ -29,6 +29,12 @@ export async function Header() {
               <Link href="/grupos" className="nav-link">
                 Grupos
               </Link>
+              <Link href="/regras" className="nav-link">
+                Regras
+              </Link>
+              <Link href="/alertas" className="nav-link">
+                Alertas
+              </Link>
             </>
           )}
           <Link href="/conta" className="nav-link">

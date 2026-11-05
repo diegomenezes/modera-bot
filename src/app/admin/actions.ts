@@ -7,6 +7,7 @@ import type { FormState } from "@/app/actions";
 import { auth } from "@/lib/auth";
 import { requireAdmin } from "@/lib/dal";
 import { prisma } from "@/lib/db";
+import { deleteInstance } from "@/lib/evolution";
 
 function text(form: FormData, name: string) {
   return String(form.get(name) ?? "").trim();
@@ -78,6 +79,34 @@ export async function setBanned(userId: string, banned: boolean) {
   } else {
     await auth.api.unbanUser({ body: { userId }, headers: requestHeaders });
   }
+  // bloqueado também deixa de ser moderado (ex.: falta de pagamento)
+  await prisma.workspace.updateMany({
+    where: { memberships: { some: { userId } } },
+    data: { active: !banned },
+  });
+  revalidatePath("/admin");
+}
+
+// Apaga o cliente, a conta e a instância dele na Evolution, para não sobrar número ligado.
+export async function deleteClient(userId: string) {
+  const session = await requireAdmin();
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      memberships: {
+        include: { workspace: { include: { instance: true, _count: { select: { memberships: true } } } } },
+      },
+    },
+  });
+  if (!user || user.id === session.user.id || user.role === "admin") return;
+
+  for (const { workspace } of user.memberships) {
+    // conta com outra pessoa continua existindo; só sai este usuário
+    if (workspace._count.memberships > 1) continue;
+    if (workspace.instance) await deleteInstance(workspace.instance.name);
+    await prisma.workspace.delete({ where: { id: workspace.id } });
+  }
+  await prisma.user.delete({ where: { id: user.id } });
   revalidatePath("/admin");
 }
 

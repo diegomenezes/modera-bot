@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { requireWorkspace } from "@/lib/dal";
 import { prisma } from "@/lib/db";
+import { refreshStatus } from "@/lib/whatsapp";
 
 export default async function PainelPage() {
   const { session, workspace } = await requireWorkspace();
-  const [instance, moderatedCount, settings] = await Promise.all([
-    prisma.whatsappInstance.findUnique({ where: { workspaceId: workspace.id } }),
+  const [status, moderatedCount, settings, unknownCount] = await Promise.all([
+    refreshStatus(workspace.id).catch(() => null),
     prisma.group.count({ where: { workspaceId: workspace.id, moderated: true } }),
     prisma.moderationSettings.findUnique({ where: { workspaceId: workspace.id } }),
+    prisma.unknownLink.count({ where: { workspaceId: workspace.id } }),
   ]);
-  const connected = instance?.status === "open";
+  const connected = status?.status === "open";
+  const dropped = !!status && status.status !== "open" && status.status !== "none";
   const groupsReady = moderatedCount > 0 && !!settings?.notifyGroupJid;
+  const moderating = connected && groupsReady && !!settings?.enabled;
 
   const steps = [
     {
@@ -32,12 +36,15 @@ export default async function PainelPage() {
       action: groupsReady ? "Alterar" : "Escolher",
     },
     {
-      title: "Definir as regras",
-      detail: "Quais sites bloquear, quais liberar e a mensagem que sai depois de apagar.",
-      done: false,
-      href: null,
-      action: "",
-      soon: true,
+      title: "Definir as regras e ligar a moderação",
+      detail: moderating
+        ? settings?.deleteMode
+          ? "Moderação ligada, apagando links bloqueados."
+          : "Moderação ligada, só avisando (modo apagar desligado)."
+        : "Quais sites bloquear, quais liberar, e ligar a moderação.",
+      done: moderating,
+      href: groupsReady ? "/regras" : null,
+      action: moderating ? "Ajustar" : "Configurar",
     },
   ];
 
@@ -47,6 +54,23 @@ export default async function PainelPage() {
         <p className="text-sm text-[var(--ink-soft)]">Olá, {session.user.name}</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">{workspace.name}</h1>
       </section>
+
+      {dropped && (
+        <section
+          className="card flex flex-wrap items-center justify-between gap-3 p-5"
+          style={{ background: "#fef2f2", borderColor: "rgba(185, 28, 28, 0.35)" }}
+        >
+          <div>
+            <p className="font-semibold text-[#b91c1c]">WhatsApp desconectado</p>
+            <p className="text-sm text-[var(--ink-soft)]">
+              Enquanto estiver assim, o bot não modera os grupos. Conecte de novo.
+            </p>
+          </div>
+          <Link href="/whatsapp" className="btn btn-primary text-sm">
+            Conectar
+          </Link>
+        </section>
+      )}
 
       <section className="card space-y-4 p-5">
         <h2 className="font-semibold">Primeiros passos</h2>
@@ -59,10 +83,7 @@ export default async function PainelPage() {
                 {step.done ? "✓" : index + 1}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-medium">
-                  {step.title}{" "}
-                  {step.soon && <span className="badge badge-muted ml-1">em breve</span>}
-                </p>
+                <p className="font-medium">{step.title}</p>
                 <p className="text-sm text-[var(--ink-soft)]">{step.detail}</p>
               </div>
               {step.href && (
@@ -77,6 +98,17 @@ export default async function PainelPage() {
           ))}
         </ol>
       </section>
+
+      {unknownCount > 0 && (
+        <section className="card flex flex-wrap items-center justify-between gap-3 p-5">
+          <p className="text-sm">
+            {unknownCount} link(s) não identificado(s) esperando você decidir.
+          </p>
+          <Link href="/alertas" className="btn btn-secondary text-sm">
+            Ver alertas
+          </Link>
+        </section>
+      )}
     </div>
   );
 }

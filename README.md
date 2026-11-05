@@ -17,3 +17,4 @@ npm run dev
 - App em `/opt/modera-bot`, PM2 na porta 3020 (`ecosystem.config.cjs`).
 - Publicado em `modera.designcreator.cloud` pela stack `deploy/modera.yaml` (Traefik → nginx → 3020).
 - Atualizar: `bash scripts/deploy.sh`.
+- Importar a moderação do gerador: `npm run import:gerador -- <email> /opt/gerador-reels/data/prod.db`.

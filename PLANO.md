@@ -65,8 +65,8 @@ reaproveitado, adaptado para várias contas. Funciona assim hoje:
 2. **Conexão** — criar instância, QR e código de pareamento, lista de grupos com indicação de admin,
    escolher grupo de aviso sem digitar ID, webhook por instância. ✓ (código de pareamento ainda não
    testado com número real: só pedir código para número do próprio usuário)
-3. **Moderação** — portar o motor para workspaces; migrar os dados do Diego como primeiro workspace;
-   repasse de mensagens para o gerador.
+3. **Moderação** — motor por workspace, telas Regras e Alertas, fila de exclusão, Testar apagar,
+   bloqueio do admin pausa a conta, excluir cliente apaga a instância, importação do gerador. ✓
 4. **Desligar** a moderação do gerador de reels.
 5. **Teste com 2–3 amigos.**
 6. **Cobrança** — Pix manual liberado pelo admin; depois assinatura (Asaas ou Mercado Pago).
@@ -79,6 +79,14 @@ reaproveitado, adaptado para várias contas. Funciona assim hoje:
 - Admin do grupo: compara o telefone do `ownerJid` com `id`/`phoneNumber`/`jid` dos participantes.
 - Nunca testar apontando para a instância `Diego` pela tela WhatsApp: `refreshStatus` pode
   reconfigurar o webhook e derrubar a moderação do gerador.
+
+## Virada do gerador para o Modera Bot (fase 4)
+
+1. `npm run import:gerador -- <email da conta do Diego> /opt/gerador-reels/data/prod.db` (já rodado no deploy da fase 3).
+2. Em Regras do Modera Bot: conferir listas, "Testar apagar" e "Mandar teste".
+3. No gerador (reels.designcreator.cloud/moderacao): desmarcar "Moderação ligada" e salvar.
+4. No Modera Bot: marcar "Moderação ligada" (e "Apagar") e salvar — logo em seguida ao passo 3.
+5. Acompanhar os primeiros alertas. Para voltar atrás: inverter 3 e 4.
 
 ## Pendências do Diego
 

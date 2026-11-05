@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { FormState } from "@/app/actions";
 import { requireWorkspace } from "@/lib/dal";
 import { prisma } from "@/lib/db";
+import { ensureSettings } from "@/lib/moderation";
 import { syncGroups } from "@/lib/whatsapp";
 
 export async function refreshGroups(): Promise<FormState> {
@@ -34,6 +35,7 @@ export async function saveGroups(_prev: FormState, form: FormData): Promise<Form
     return { error: "O grupo de aviso não pode ser um dos grupos moderados." };
   }
 
+  await ensureSettings(workspace.id);
   await prisma.$transaction([
     prisma.group.updateMany({
       where: { workspaceId: workspace.id },
@@ -43,10 +45,9 @@ export async function saveGroups(_prev: FormState, form: FormData): Promise<Form
       where: { workspaceId: workspace.id, remoteJid: { in: moderated } },
       data: { moderated: true },
     }),
-    prisma.moderationSettings.upsert({
+    prisma.moderationSettings.update({
       where: { workspaceId: workspace.id },
-      create: { workspaceId: workspace.id, notifyGroupJid },
-      update: { notifyGroupJid },
+      data: { notifyGroupJid },
     }),
   ]);
 

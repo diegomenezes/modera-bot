@@ -102,7 +102,7 @@ export async function addBlocked(_prev: FormState, form: FormData): Promise<Form
     prisma.allowedDomain.deleteMany({ where: { workspaceId: workspace.id, domain } }),
     prisma.unknownLink.deleteMany({ where: { workspaceId: workspace.id, domain } }),
   ]);
-  return done();
+  return done(`${domain} adicionado aos bloqueados.`);
 }
 
 export async function addAllowed(_prev: FormState, form: FormData): Promise<FormState> {
@@ -122,7 +122,7 @@ export async function addAllowed(_prev: FormState, form: FormData): Promise<Form
     }),
     prisma.unknownLink.deleteMany({ where: { workspaceId: workspace.id, domain } }),
   ]);
-  return done();
+  return done(`${domain} adicionado aos liberados.`);
 }
 
 export async function addInvite(_prev: FormState, form: FormData): Promise<FormState> {
@@ -137,7 +137,7 @@ export async function addInvite(_prev: FormState, form: FormData): Promise<FormS
     create: { workspaceId: workspace.id, url },
     update: {},
   });
-  return done();
+  return done("Convite autorizado.");
 }
 
 export async function refreshInvites(): Promise<FormState> {

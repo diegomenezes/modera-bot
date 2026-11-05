@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 import type { FormState } from "@/app/actions";
 import { submitWithoutReset } from "@/lib/form";
@@ -118,17 +119,27 @@ export function AddItemForm({
   name: string;
   placeholder: string;
 }) {
-  const [state, action, pending] = useActionState(serverAction, undefined);
+  const router = useRouter();
+  const [state, action, pending] = useActionState(
+    async (prev: FormState, form: FormData) => {
+      const result = await serverAction(prev, form);
+      // garante a lista nova na tela mesmo se a revalidação do servidor não chegar
+      if (result?.ok) router.refresh();
+      return result;
+    },
+    undefined,
+  );
 
   return (
     <form action={action} className="space-y-1">
       <div className="flex flex-col gap-2 sm:flex-row">
         <input name={name} className="field" placeholder={placeholder} required />
         <button type="submit" className="btn btn-secondary shrink-0 text-sm" disabled={pending}>
-          Adicionar
+          {pending ? "Adicionando..." : "Adicionar"}
         </button>
       </div>
       {state?.error && <p className="text-sm text-[var(--warn)]">{state.error}</p>}
+      {state?.ok && <p className="text-sm text-[var(--accent)]">{state.ok}</p>}
     </form>
   );
 }

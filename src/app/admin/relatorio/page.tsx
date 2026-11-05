@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/dal";
 import { prisma } from "@/lib/db";
 import { connectionState } from "@/lib/evolution";
@@ -15,6 +16,14 @@ const ACTION_LABEL: Record<string, string> = {
   notify_failed: "Falha no aviso",
   deleted_notify_failed: "Apagado, aviso falhou",
   pending: "Processando",
+};
+
+const STATE_LABEL: Record<string, string> = {
+  open: "no ar",
+  close: "desconectado",
+  connecting: "conectando",
+  missing: "instância não existe na Evolution",
+  unknown: "Evolution sem resposta",
 };
 
 function ago(date: Date | null | undefined): string {
@@ -74,8 +83,12 @@ export default async function RelatorioPage() {
       prisma.unknownLink.groupBy({ by: ["workspaceId"], _count: true }),
       prisma.moderationEvent.groupBy({ by: ["workspaceId"], _max: { createdAt: true } }),
       prisma.moderationEvent.findMany({
+        where: {
+          createdAt: { gt: since7d },
+          action: { in: ["delete_failed", "notify_failed", "deleted_notify_failed", "pending"] },
+        },
         orderBy: { createdAt: "desc" },
-        take: 50,
+        take: 5,
         include: { workspace: { select: { name: true } } },
       }),
     ]);
@@ -104,7 +117,7 @@ export default async function RelatorioPage() {
     if (user?.banned) problems.push({ level: "info", text: "Acesso bloqueado: moderação pausada." });
     if (!w.instance) problems.push({ level: "atencao", text: "WhatsApp nunca foi conectado." });
     else if (state !== "open") {
-      problems.push({ level: "erro", text: `WhatsApp fora do ar (Evolution: ${state}). Não está moderando.` });
+      problems.push({ level: "erro", text: `WhatsApp fora do ar (${STATE_LABEL[state ?? "unknown"] ?? state}). Não está moderando.` });
     } else if (w.settings?.enabled && (!w.instance.lastWebhookAt || now - w.instance.lastWebhookAt.getTime() > 3 * HOUR)) {
       problems.push({
         level: "atencao",
@@ -198,7 +211,7 @@ export default async function RelatorioPage() {
                 <p className="font-semibold">
                   {r.w.name}{" "}
                   <span className={`badge ${r.state === "open" ? "" : "badge-warn"}`}>
-                    {r.state === null ? "sem WhatsApp" : r.state === "open" ? "no ar" : r.state}
+                    {r.state === null ? "sem WhatsApp" : (STATE_LABEL[r.state] ?? r.state)}
                   </span>
                 </p>
                 <p className="text-sm text-[var(--ink-soft)]">
@@ -275,9 +288,14 @@ export default async function RelatorioPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-semibold">Atividade recente (todos os clientes)</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold">Últimos problemas (7 dias)</h2>
+          <Link href="/admin/atividade" className="btn btn-secondary text-sm">
+            Ver toda a atividade
+          </Link>
+        </div>
         {recent.length === 0 ? (
-          <p className="text-sm text-[var(--ink-soft)]">Nenhum alerta ainda.</p>
+          <p className="text-sm text-[var(--accent)]">Nenhuma falha nos últimos 7 dias.</p>
         ) : (
           <div className="card divide-y divide-[var(--line)] text-sm">
             {recent.map((e) => (

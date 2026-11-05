@@ -42,6 +42,9 @@ export async function Header() {
                 <Link href="/admin/relatorio" className="nav-link">
                   Relatório
                 </Link>
+                <Link href="/admin/atividade" className="nav-link">
+                  Atividade
+                </Link>
               </>
             ) : (
               <>

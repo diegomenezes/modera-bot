@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { submitWithoutReset } from "@/lib/form";
 import { refreshGroups, saveGroups } from "./actions";
 
 type GroupRow = {
@@ -42,7 +43,7 @@ export function GroupsForm({
   const term = filter.trim().toLowerCase();
 
   return (
-    <form action={action} className="space-y-6">
+    <form onSubmit={submitWithoutReset(action)} className="space-y-6">
       <section className="card space-y-3 p-5">
         <div>
           <h2 className="font-semibold">Grupo que recebe os avisos</h2>

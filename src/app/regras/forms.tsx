@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import type { FormState } from "@/app/actions";
+import { submitWithoutReset } from "@/lib/form";
 import { saveSettings, sendTestAlert, testDelete } from "./actions";
 
 export function SettingsForm(props: {
@@ -14,7 +15,7 @@ export function SettingsForm(props: {
   const [enabled, setEnabled] = useState(props.enabled);
 
   return (
-    <form action={action} className="space-y-4">
+    <form onSubmit={submitWithoutReset(action)} className="space-y-4">
       <div>
         <h2 className="font-semibold">Moderação</h2>
         <p

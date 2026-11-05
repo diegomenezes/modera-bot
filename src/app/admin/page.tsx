@@ -1,7 +1,7 @@
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { requireAdmin } from "@/lib/dal";
 import { prisma } from "@/lib/db";
-import { deleteClient, setBanned } from "./actions";
+import { deleteClient, impersonate, setBanned } from "./actions";
 import { CreateClientForm, ResetPasswordForm } from "./forms";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -103,6 +103,13 @@ export default async function AdminPage() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {workspace && !user.banned && (
+                    <form action={impersonate.bind(null, user.id)}>
+                      <button type="submit" className="btn btn-secondary text-sm">
+                        Entrar como
+                      </button>
+                    </form>
+                  )}
                   <form action={setBanned.bind(null, user.id, !user.banned)}>
                     <button
                       type="submit"

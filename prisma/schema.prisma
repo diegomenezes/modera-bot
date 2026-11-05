@@ -112,17 +112,19 @@ model Membership {
 
 // Um número de WhatsApp por conta, numa instância própria da Evolution.
 model WhatsappInstance {
-  id           String    @id @default(cuid())
-  workspaceId  String    @unique
-  name         String    @unique
-  webhookToken String    @unique
-  status       String    @default("disconnected")
-  phone        String?
-  profileName  String?
-  connectedAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  workspaceId   String    @unique
+  name          String    @unique
+  webhookToken  String    @unique
+  status        String    @default("disconnected")
+  phone         String?
+  profileName   String?
+  connectedAt   DateTime?
+  // último evento recebido da Evolution (debug: se parar, a Evolution parou de mandar)
+  lastWebhookAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model Group {

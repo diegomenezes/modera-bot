@@ -34,16 +34,42 @@ type Context = { workspaceId: string; instance: string };
 
 // --- links ---
 
+// Finais de domínio aceitos em link escrito sem http (o WhatsApp deixa "www.loja.com.br"
+// e "loja.com.br" clicáveis). A lista evita tratar "obrigado.Até" ou "foto.png" como link.
+const BARE_TLDS = new Set([
+  "com", "net", "org", "br", "io", "co", "me", "app", "ly", "la", "ee", "gl", "to", "info",
+  "shop", "store", "site", "online", "link", "xyz", "cc", "tv", "us", "ai", "dev", "gg", "page",
+  "club", "live", "top", "bio", "pt", "ar", "mx", "es", "cl", "uy", "py", "pe", "uk", "de",
+  "fr", "it", "cn", "ru", "in", "tk", "ml", "ga", "cf", "gq", "ws", "su", "biz", "vip", "pro",
+  "one", "win", "lat", "fun", "icu", "art", "blog", "news", "sh", "so", "is", "im", "fm", "be",
+]);
+
+const SCHEME_URL = /https?:\/\/[^\s<>"']+/gi;
+// domínio solto: não pode vir grudado em @ (e-mail), letra, ponto ou barra
+const BARE_URL =
+  /(?<![@\w.\/-])((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+([a-z]{2,}))(?=$|[\s/?#:),.;!"'])(\/[^\s<>"']*)?/gi;
+
 export function extractUrls(text: string): string[] {
-  const found = text.match(/https?:\/\/[^\s<>"']+/gi) ?? [];
   const urls: string[] = [];
-  for (const raw of found) {
+  const push = (raw: string) => {
     try {
       const url = new URL(raw.replace(/[),.;!?]+$/g, ""));
       if (url.protocol === "http:" || url.protocol === "https:") urls.push(url.toString());
     } catch {
       // trecho que não é URL
     }
+  };
+
+  for (const raw of text.match(SCHEME_URL) ?? []) push(raw);
+  // tira os links com http para não contar duas vezes
+  const rest = text.replace(SCHEME_URL, " ");
+  for (const match of rest.matchAll(BARE_URL)) {
+    const [, host, tld, path] = match;
+    if (!BARE_TLDS.has(tld.toLowerCase())) continue;
+    // "Sim.Com certeza" é frase sem espaço; domínio de verdade vem com o final minúsculo
+    const looksLikeSentence = tld !== tld.toLowerCase() && !/^www\./i.test(host) && !path;
+    if (looksLikeSentence) continue;
+    push(`https://${host}${path ?? ""}`);
   }
   return urls;
 }

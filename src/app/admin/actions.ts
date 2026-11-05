@@ -2,6 +2,7 @@
 
 import { APIError } from "better-auth/api";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import type { FormState } from "@/app/actions";
 import { auth } from "@/lib/auth";
@@ -131,4 +132,12 @@ export async function resetPassword(
     return { error: apiMessage(err, "Não consegui trocar a senha.") };
   }
   return { ok: "Senha trocada. A pessoa precisa entrar de novo." };
+}
+
+// Entra no sistema como o cliente, para ver e ajustar o que ele vê. Volta pela faixa do topo.
+export async function impersonate(userId: string) {
+  const session = await requireAdmin();
+  await auth.api.impersonateUser({ body: { userId }, headers: await headers() });
+  console.log(`[admin] ${session.user.email} entrou como ${userId}`);
+  redirect("/");
 }

@@ -37,6 +37,11 @@ export async function signOut() {
   redirect("/login");
 }
 
+export async function stopImpersonating() {
+  await auth.api.stopImpersonating({ headers: await headers() });
+  redirect("/admin");
+}
+
 export async function changePassword(
   _prev: FormState,
   form: FormData,

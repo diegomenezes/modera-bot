@@ -2,6 +2,9 @@ import { after, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { parseWebhook, processMessage } from "@/lib/moderation";
 
+const WEBHOOK_MARK_MS = 60_000;
+const lastMark = new Map<string, number>();
+
 // Cada instância da Evolution tem um endereço próprio com um token secreto.
 // Responde na hora e processa depois, para a Evolution não acumular atraso.
 export async function POST(request: Request, ctx: RouteContext<"/api/webhook/[token]">) {
@@ -16,6 +19,14 @@ export async function POST(request: Request, ctx: RouteContext<"/api/webhook/[to
   const event = String(body?.event ?? "").toLowerCase().replace("_", ".");
 
   after(async () => {
+    // no máximo uma gravação por minuto por instância
+    if (Date.now() - (lastMark.get(instance.id) ?? 0) > WEBHOOK_MARK_MS) {
+      lastMark.set(instance.id, Date.now());
+      await prisma.whatsappInstance.update({
+        where: { id: instance.id },
+        data: { lastWebhookAt: new Date() },
+      });
+    }
     if (event === "connection.update") {
       const state = (body?.data as { state?: string } | undefined)?.state;
       const status =

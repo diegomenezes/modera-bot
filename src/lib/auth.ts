@@ -17,6 +17,8 @@ export const auth = betterAuth({
   },
   plugins: [
     admin({
+      // "Entrar como" no Admin: a sessão como cliente vale 1 hora
+      impersonationSessionDuration: 60 * 60,
       bannedUserMessage: "Seu acesso está bloqueado. Fale com o administrador.",
     }),
     // precisa ser o último: grava o cookie quando o login acontece numa Server Action

@@ -170,15 +170,20 @@ model AllowedDomain {
   @@unique([workspaceId, domain])
 }
 
-// Convites chat.whatsapp.com liberados um a um.
+// Convites chat.whatsapp.com liberados. Com groupJid, é o convite de um grupo moderado,
+// descoberto e atualizado sozinho (o link muda quando um admin redefine o convite).
 model AllowedInvite {
   id          String    @id @default(cuid())
   workspaceId String
   url         String
+  groupJid    String?
+  groupName   String?
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, url])
+  @@unique([workspaceId, groupJid])
 }
 
 // Link que um admin do grupo mandou: fica liberado por 72 horas.

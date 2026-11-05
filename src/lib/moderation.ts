@@ -7,6 +7,7 @@ import {
   senderIsGroupAdmin,
   sendTextMessage,
 } from "./evolution";
+import { syncAllInviteLinks } from "./whatsapp";
 
 // Motor de moderação, portado do gerador de reels. Tudo é por conta (workspaceId)
 // e usa a instância da Evolution dessa conta.
@@ -609,6 +610,8 @@ export function startModerationWorker() {
       await retryFailedDeletes();
       // uma vez por hora
       if (ticks % 60 === 0) await pruneHistory();
+      // uma vez por dia (e logo depois de cada deploy)
+      if (ticks % 1440 === 0) await syncAllInviteLinks();
       ticks += 1;
     } catch (err) {
       console.error("[moderacao] fila de exclusão:", err);

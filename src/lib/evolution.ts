@@ -430,3 +430,17 @@ export async function deleteMessageForEveryone(
 
   if (!accepted) throw new Error(lastError);
 }
+
+// Link de convite atual do grupo (só funciona se o número for admin do grupo).
+export async function fetchInviteUrl(instance: string, groupJid: string): Promise<string | null> {
+  const res = await call(
+    `/group/inviteCode/${encodeURIComponent(instance)}?groupJid=${encodeURIComponent(groupJid)}`,
+    { timeoutMs: 15000 },
+  );
+  if (!res.ok) return null;
+  const json = (res.json ?? {}) as { inviteUrl?: unknown; inviteCode?: unknown };
+  if (typeof json.inviteCode === "string" && json.inviteCode) {
+    return `https://chat.whatsapp.com/${json.inviteCode}`;
+  }
+  return typeof json.inviteUrl === "string" && json.inviteUrl ? json.inviteUrl : null;
+}

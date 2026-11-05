@@ -5,12 +5,13 @@ import type { FormState } from "@/app/actions";
 import { requireWorkspace } from "@/lib/dal";
 import { prisma } from "@/lib/db";
 import { ensureSettings } from "@/lib/moderation";
-import { syncGroups } from "@/lib/whatsapp";
+import { syncGroups, syncInviteLinks } from "@/lib/whatsapp";
 
 export async function refreshGroups(): Promise<FormState> {
   const { workspace } = await requireWorkspace();
   try {
     const count = await syncGroups(workspace.id);
+    await syncInviteLinks(workspace.id).catch(() => null);
     revalidatePath("/grupos");
     return { ok: `${count} grupo(s) encontrados.` };
   } catch (err) {
@@ -51,7 +52,10 @@ export async function saveGroups(_prev: FormState, form: FormData): Promise<Form
     }),
   ]);
 
+  // convites dos grupos moderados entram nos autorizados na hora
+  await syncInviteLinks(workspace.id).catch(() => null);
   revalidatePath("/grupos");
+  revalidatePath("/regras");
   revalidatePath("/");
   return { ok: `Salvo: ${moderated.length} grupo(s) moderado(s).` };
 }

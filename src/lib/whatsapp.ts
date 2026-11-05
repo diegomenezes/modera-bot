@@ -7,6 +7,7 @@ import {
   createInstance,
   deleteInstance,
   fetchGroups,
+  fetchInviteUrl,
   instanceExists,
   instanceOwner,
   logoutInstance,
@@ -156,4 +157,55 @@ export async function syncGroups(workspaceId: string) {
     }),
   ]);
   return groups.length;
+}
+
+// Mantém nos convites autorizados o link atual de cada grupo moderado (onde o bot é admin).
+// O link muda quando um admin redefine o convite; por isso roda todo dia e ao salvar os grupos.
+export async function syncInviteLinks(workspaceId: string) {
+  const instance = await getInstance(workspaceId);
+  if (!instance || instance.status !== "open") return { updated: 0, failed: 0, total: 0 };
+  const groups = await prisma.group.findMany({
+    where: { workspaceId, moderated: true, botIsAdmin: true },
+  });
+
+  let updated = 0;
+  let failed = 0;
+  for (const group of groups) {
+    const url = await fetchInviteUrl(instance.name, group.remoteJid).catch(() => null);
+    if (!url) {
+      failed += 1;
+      continue;
+    }
+    const key = { workspaceId_groupJid: { workspaceId, groupJid: group.remoteJid } };
+    const current = await prisma.allowedInvite.findUnique({ where: key });
+    if (current?.url === url && current.groupName === group.name) continue;
+    // um convite igual adicionado à mão passa a ser o automático
+    await prisma.allowedInvite.deleteMany({ where: { workspaceId, url, groupJid: null } });
+    await prisma.allowedInvite.upsert({
+      where: key,
+      create: { workspaceId, url, groupJid: group.remoteJid, groupName: group.name },
+      update: { url, groupName: group.name },
+    });
+    if (current?.url !== url) updated += 1;
+  }
+
+  // grupos que deixaram de ser moderados (ou o bot deixou de ser admin)
+  await prisma.allowedInvite.deleteMany({
+    where: { workspaceId, groupJid: { not: null, notIn: groups.map((g) => g.remoteJid) } },
+  });
+  return { updated, failed, total: groups.length };
+}
+
+export async function syncAllInviteLinks() {
+  const instances = await prisma.whatsappInstance.findMany({
+    where: { status: "open", workspace: { active: true } },
+    select: { workspaceId: true },
+  });
+  for (const { workspaceId } of instances) {
+    try {
+      await syncInviteLinks(workspaceId);
+    } catch (err) {
+      console.error(`[convites] ${workspaceId}:`, err);
+    }
+  }
 }

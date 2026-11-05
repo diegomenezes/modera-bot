@@ -3,7 +3,7 @@ import { requireWorkspace } from "@/lib/dal";
 import { prisma } from "@/lib/db";
 import { ensureSettings } from "@/lib/moderation";
 import { addAllowed, addBlocked, addInvite, removeRule } from "./actions";
-import { AddItemForm, SettingsForm, TestAlertButton } from "./forms";
+import { AddItemForm, RefreshInvitesButton, SettingsForm, TestAlertButton } from "./forms";
 
 export default async function RegrasPage() {
   const { workspace } = await requireWorkspace();
@@ -12,7 +12,7 @@ export default async function RegrasPage() {
   const [blocked, allowed, invites, moderatedCount] = await Promise.all([
     prisma.blockedDomain.findMany({ where, orderBy: { domain: "asc" } }),
     prisma.allowedDomain.findMany({ where, orderBy: { domain: "asc" } }),
-    prisma.allowedInvite.findMany({ where, orderBy: { createdAt: "desc" } }),
+    prisma.allowedInvite.findMany({ where, orderBy: [{ groupName: "asc" }, { createdAt: "desc" }] }),
     prisma.group.count({ where: { ...where, moderated: true } }),
   ]);
 
@@ -23,7 +23,7 @@ export default async function RegrasPage() {
       help: "Link destes sites é apagado (com o modo apagar ligado) e avisado. Vale para os subdomínios.",
       placeholder: "ex.: shopee.com.br",
       add: addBlocked,
-      items: blocked.map((b) => ({ id: b.id, label: b.domain })),
+      items: blocked.map((b) => ({ id: b.id, label: b.domain, auto: null as string | null })),
       empty: "Nenhum domínio bloqueado.",
     },
     {
@@ -32,16 +32,16 @@ export default async function RegrasPage() {
       help: "Links destes sites passam direto, sem aviso. youtube.com libera também m.youtube.com.",
       placeholder: "ex.: youtube.com",
       add: addAllowed,
-      items: allowed.map((a) => ({ id: a.id, label: a.domain })),
+      items: allowed.map((a) => ({ id: a.id, label: a.domain, auto: null as string | null })),
       empty: "Nenhum domínio liberado.",
     },
     {
       kind: "invite" as const,
       title: "Convites de grupo autorizados",
-      help: "Links chat.whatsapp.com que podem ser divulgados, mesmo com convites bloqueados.",
+      help: "Links chat.whatsapp.com que podem ser divulgados, mesmo com convites bloqueados. Os convites dos grupos moderados (onde o bot é admin) entram sozinhos e são atualizados todo dia.",
       placeholder: "https://chat.whatsapp.com/...",
       add: addInvite,
-      items: invites.map((i) => ({ id: i.id, label: i.url })),
+      items: invites.map((i) => ({ id: i.id, label: i.url, auto: i.groupJid ? (i.groupName ?? "grupo moderado") : null })),
       empty: "Nenhum convite autorizado.",
     },
   ];
@@ -86,6 +86,7 @@ export default async function RegrasPage() {
             <h2 className="font-semibold">{list.title}</h2>
             <p className="mt-1 text-sm text-[var(--ink-soft)]">{list.help}</p>
           </div>
+          {list.kind === "invite" && <RefreshInvitesButton />}
           <AddItemForm
             action={list.add}
             name={list.kind === "invite" ? "url" : "domain"}
@@ -97,12 +98,21 @@ export default async function RegrasPage() {
             )}
             {list.items.map((item) => (
               <li key={item.id} className="flex items-center justify-between gap-3">
-                <span className="break-all">{item.label}</span>
-                <form action={removeRule.bind(null, list.kind, item.id)}>
-                  <button type="submit" className="btn btn-danger shrink-0 text-sm">
-                    Remover
-                  </button>
-                </form>
+                <span className="min-w-0 break-all">
+                  {item.label}
+                  {item.auto && (
+                    <span className="block text-[var(--ink-soft)]">automático · {item.auto}</span>
+                  )}
+                </span>
+                {item.auto ? (
+                  <span className="badge shrink-0">automático</span>
+                ) : (
+                  <form action={removeRule.bind(null, list.kind, item.id)}>
+                    <button type="submit" className="btn btn-danger shrink-0 text-sm">
+                      Remover
+                    </button>
+                  </form>
+                )}
               </li>
             ))}
           </ul>

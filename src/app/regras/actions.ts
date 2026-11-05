@@ -5,6 +5,7 @@ import type { FormState } from "@/app/actions";
 import { requireWorkspace } from "@/lib/dal";
 import { prisma } from "@/lib/db";
 import { deleteOwnMessage, sendTextMessage } from "@/lib/evolution";
+import { syncInviteLinks } from "@/lib/whatsapp";
 import {
   ensureSettings,
   hostMatchesDomain,
@@ -139,12 +140,25 @@ export async function addInvite(_prev: FormState, form: FormData): Promise<FormS
   return done();
 }
 
+export async function refreshInvites(): Promise<FormState> {
+  const { workspace } = await requireWorkspace();
+  const result = await syncInviteLinks(workspace.id);
+  done();
+  if (result.total === 0) {
+    return { error: "Nenhum grupo moderado em que o bot é admin." };
+  }
+  return result.failed
+    ? { error: `Atualizei ${result.total - result.failed} de ${result.total}. Nos outros o WhatsApp não devolveu o link.` }
+    : { ok: `Convites dos ${result.total} grupos moderados atualizados.` };
+}
+
 export async function removeRule(kind: "blocked" | "allowed" | "invite", id: string) {
   const { workspace } = await requireWorkspace();
   // o filtro por workspaceId impede apagar item de outra conta
   const where = { id, workspaceId: workspace.id };
   if (kind === "blocked") await prisma.blockedDomain.deleteMany({ where });
   if (kind === "allowed") await prisma.allowedDomain.deleteMany({ where });
-  if (kind === "invite") await prisma.allowedInvite.deleteMany({ where });
+  // convite automático volta sozinho; só o adicionado à mão pode ser removido
+  if (kind === "invite") await prisma.allowedInvite.deleteMany({ where: { ...where, groupJid: null } });
   done();
 }

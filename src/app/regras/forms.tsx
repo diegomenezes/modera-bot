@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import type { FormState } from "@/app/actions";
 import { submitWithoutReset } from "@/lib/form";
-import { saveSettings, sendTestAlert, testDelete } from "./actions";
+import { refreshInvites, saveSettings, sendTestAlert, testDelete } from "./actions";
 
 export function SettingsForm(props: {
   enabled: boolean;
@@ -129,6 +129,20 @@ export function AddItemForm({
         </button>
       </div>
       {state?.error && <p className="text-sm text-[var(--warn)]">{state.error}</p>}
+    </form>
+  );
+}
+
+export function RefreshInvitesButton() {
+  const [state, action, pending] = useActionState(async () => refreshInvites(), undefined);
+
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-3">
+      <button type="submit" className="btn btn-secondary text-sm" disabled={pending}>
+        {pending ? "Atualizando..." : "Atualizar convites dos grupos agora"}
+      </button>
+      {state?.error && <p className="text-sm text-[var(--warn)]">{state.error}</p>}
+      {state?.ok && <p className="text-sm text-[var(--accent)]">{state.ok}</p>}
     </form>
   );
 }

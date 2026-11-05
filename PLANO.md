@@ -27,9 +27,10 @@ reaproveitado, adaptado para várias contas. Funciona assim hoje:
 - **A Evolution não guarda mensagens** desses grupos (`findMessages` devolve total 0). Não dá para varrer
   histórico nem confirmar se a mensagem sumiu. O webhook é a única fonte.
 - **O gerador de reels depende do webhook da moderação:** o pipeline lê a tabela `Message`
-  (`gerador-reels/src/lib/pipeline.ts`), que só é gravada pelo webhook. A Evolution aceita **um**
-  webhook por instância. Ao separar, o Modera Bot recebe o webhook da instância do Diego e repassa as
-  mensagens para o gerador (rota de ingestão no gerador).
+  (`gerador-reels/src/lib/pipeline.ts`), que só é gravada pelo webhook da instância `Diego`.
+  **Decisão (05/11/2026):** o mesmo número (5519990253244) fica conectado em duas instâncias —
+  `Diego` alimenta o gerador e `mb-d33b8ea6d30b` alimenta o Modera Bot. Não há repasse entre sistemas.
+  Na troca: desligar "Moderação ligada" no gerador e ligar no Modera Bot ao mesmo tempo, nunca os dois.
 - Evolution v2.3.7 em `api.designcreator.cloud`. `/instance/fetchInstances` devolve `ownerJid`.
   `/group/fetchAllGroups/{inst}?getParticipants=true` lista grupos com `admin` de cada participante.
 - `POST /settings/set` na 2.3.7 exige todos os campos (`rejectCall`, `alwaysOnline`, `readMessages`, `readStatus`).

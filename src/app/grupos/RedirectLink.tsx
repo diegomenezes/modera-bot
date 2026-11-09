@@ -67,6 +67,18 @@ export function RedirectLink({
         </ul>
       )}
 
+      {usableCount > 0 && (
+        <p className="text-sm">
+          Membros nos Grupos:{" "}
+          <strong>
+            {rows
+              .filter((g) => g.inviteUrl)
+              .reduce((sum, g) => sum + g.members, 0)
+              .toLocaleString("pt-BR")}
+          </strong>
+        </p>
+      )}
+
       <p className="text-xs text-[var(--ink-soft)]">
         A contagem de pessoas é atualizada do WhatsApp a cada 10 minutos enquanto o link
         recebe acessos; entre uma contagem e outra, cada clique conta como uma pessoa a mais.

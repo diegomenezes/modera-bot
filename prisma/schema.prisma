@@ -86,6 +86,8 @@ model Workspace {
   // passo a passo do primeiro acesso: quando o cliente fechou e quando testou o envio
   onboardingDismissedAt DateTime?
   testedAt              DateTime?
+  // link público que distribui as pessoas entre os grupos (/grupo-<slug>)
+  redirectSlug          String?             @unique
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   memberships           Membership[]
@@ -138,6 +140,8 @@ model Group {
   size        Int       @default(0)
   botIsAdmin  Boolean   @default(false)
   moderated   Boolean   @default(false)
+  // cliques no link redirecionador desde a última contagem real de membros
+  redirectClicks Int    @default(0)
   syncedAt    DateTime  @default(now())
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requireWorkspace } from "@/lib/dal";
 import { prisma } from "@/lib/db";
+import { ensureRedirectSlug, getRedirectGroups, redirectPath } from "@/lib/redirect";
 import { GroupsForm, RefreshButton } from "./GroupsForm";
+import { RedirectLink } from "./RedirectLink";
 
 export default async function GruposPage() {
   const { workspace } = await requireWorkspace();
@@ -14,6 +16,11 @@ export default async function GruposPage() {
     prisma.moderationSettings.findUnique({ where: { workspaceId: workspace.id } }),
   ]);
   const connected = instance?.status === "open";
+  const [slug, redirect] = await Promise.all([
+    ensureRedirectSlug(workspace.id),
+    getRedirectGroups(workspace.id),
+  ]);
+  const base = (process.env.APP_URL || process.env.BETTER_AUTH_URL || "").replace(/\/$/, "");
 
   return (
     <div className="space-y-6">
@@ -34,6 +41,14 @@ export default async function GruposPage() {
         </section>
       ) : (
         <>
+          {groups.length > 0 && (
+            <RedirectLink
+              url={`${base}${redirectPath(slug)}`}
+              rows={redirect.rows}
+              totalVacancies={redirect.totalVacancies}
+              usableCount={redirect.usable.length}
+            />
+          )}
           <RefreshButton hasGroups={groups.length > 0} />
           {groups.length > 0 && (
             <GroupsForm

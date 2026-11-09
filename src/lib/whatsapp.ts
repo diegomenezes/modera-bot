@@ -148,7 +148,8 @@ export async function syncGroups(workspaceId: string) {
       prisma.group.upsert({
         where: { workspaceId_remoteJid: { workspaceId, remoteJid: group.remoteJid } },
         create: { workspaceId, ...group, syncedAt: now },
-        update: { name: group.name, size: group.size, botIsAdmin: group.botIsAdmin, syncedAt: now },
+        // a contagem real substitui os cliques estimados do link redirecionador
+        update: { name: group.name, size: group.size, botIsAdmin: group.botIsAdmin, syncedAt: now, redirectClicks: 0 },
       }),
     ),
     // grupos de que o número saiu

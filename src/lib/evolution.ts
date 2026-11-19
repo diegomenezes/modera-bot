@@ -444,3 +444,99 @@ export async function fetchInviteUrl(instance: string, groupJid: string): Promis
   }
   return typeof json.inviteUrl === "string" && json.inviteUrl ? json.inviteUrl : null;
 }
+
+// --- Criar grupo (botão "Criar grupo" da aba Grupos) ---
+
+export type GroupDetails = {
+  subject: string;
+  description: string;
+  pictureUrl: string | null;
+  adminPhones: string[];
+};
+
+export async function fetchGroupDetails(instance: string, groupJid: string): Promise<GroupDetails> {
+  const res = await call(
+    `/group/findGroupInfos/${encodeURIComponent(instance)}?groupJid=${encodeURIComponent(groupJid)}`,
+    { timeoutMs: 20000 },
+  );
+  if (!res.ok) fail("Não consegui ler o grupo", res.text);
+  const json = (res.json ?? {}) as Record<string, unknown>;
+  const adminPhones: string[] = [];
+  for (const p of readParticipants(json)) {
+    if (p.admin !== "admin" && p.admin !== "superadmin") continue;
+    const phone = phoneDigits(p.phoneNumber) || phoneDigits(p.jid) || phoneDigits(p.id);
+    if (phone && !adminPhones.includes(phone)) adminPhones.push(phone);
+  }
+  return {
+    subject: typeof json.subject === "string" ? json.subject : "",
+    description: typeof json.desc === "string" ? json.desc : "",
+    pictureUrl: typeof json.pictureUrl === "string" && json.pictureUrl ? json.pictureUrl : null,
+    adminPhones,
+  };
+}
+
+// Cria o grupo já com os participantes promovidos a admin. Devolve o ID do grupo.
+export async function createGroup(
+  instance: string,
+  input: { subject: string; participants: string[]; description?: string },
+): Promise<string> {
+  const res = await call(`/group/create/${encodeURIComponent(instance)}`, {
+    method: "POST",
+    body: {
+      subject: input.subject,
+      participants: input.participants,
+      ...(input.description ? { description: input.description } : {}),
+      promoteParticipants: true,
+    },
+    timeoutMs: 60000,
+  });
+  if (!res.ok) fail("Não consegui criar o grupo", res.text);
+  const id = (res.json as { id?: unknown } | null)?.id;
+  if (typeof id !== "string" || !id.endsWith("@g.us")) {
+    fail("A Evolution respondeu, mas não devolveu o grupo", res.text);
+  }
+  return id;
+}
+
+function groupQuery(instance: string, action: string, groupJid: string) {
+  return `/group/${action}/${encodeURIComponent(instance)}?groupJid=${encodeURIComponent(groupJid)}`;
+}
+
+export async function updateGroupDescription(
+  instance: string,
+  groupJid: string,
+  description: string,
+): Promise<void> {
+  const res = await call(groupQuery(instance, "updateGroupDescription", groupJid), {
+    method: "POST",
+    body: { description },
+  });
+  if (!res.ok) fail("Não consegui mudar a descrição", res.text);
+}
+
+// image: URL pública ou base64 puro (sem o "data:...;base64,").
+export async function updateGroupPicture(
+  instance: string,
+  groupJid: string,
+  image: string,
+): Promise<void> {
+  const res = await call(groupQuery(instance, "updateGroupPicture", groupJid), {
+    method: "POST",
+    body: { image },
+    timeoutMs: 30000,
+  });
+  if (!res.ok) fail("Não consegui trocar a foto", res.text);
+}
+
+// locked: só admins mudam nome, foto e descrição. announcement: só admins mandam mensagem.
+export async function updateGroupSetting(
+  instance: string,
+  groupJid: string,
+  action: "locked" | "unlocked" | "announcement" | "not_announcement",
+): Promise<void> {
+  const res = await call(groupQuery(instance, "updateSetting", groupJid), {
+    method: "POST",
+    body: { action },
+  });
+  if (!res.ok) fail("Não consegui mudar as permissões do grupo", res.text);
+}

@@ -5,6 +5,7 @@ import type { FormState } from "@/app/actions";
 import { requireWorkspace } from "@/lib/dal";
 import { prisma } from "@/lib/db";
 import { ensureSettings } from "@/lib/moderation";
+import { createNextGroup, draftNextGroup, type NewGroupDraft } from "@/lib/groupCreate";
 import { syncGroups, syncInviteLinks } from "@/lib/whatsapp";
 
 export async function refreshGroups(): Promise<FormState> {
@@ -58,4 +59,40 @@ export async function saveGroups(_prev: FormState, form: FormData): Promise<Form
   revalidatePath("/regras");
   revalidatePath("/");
   return { ok: `Salvo: ${moderated.length} grupo(s) moderado(s).` };
+}
+
+export async function loadGroupDraft(
+  sourceJid: string,
+): Promise<{ draft?: NewGroupDraft; error?: string }> {
+  const { workspace } = await requireWorkspace();
+  try {
+    return { draft: await draftNextGroup(workspace.id, sourceJid) };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export type CreateGroupState =
+  | { error?: string; ok?: string; done?: string[]; failed?: string[] }
+  | undefined;
+
+export async function createGroupAction(
+  _prev: CreateGroupState,
+  form: FormData,
+): Promise<CreateGroupState> {
+  const { workspace } = await requireWorkspace();
+  const picture = String(form.get("picture") ?? "").replace(/^data:image\/\w+;base64,/, "");
+  try {
+    const result = await createNextGroup(workspace.id, {
+      sourceJid: String(form.get("source") ?? ""),
+      description: String(form.get("description") ?? "").slice(0, 2048),
+      admins: String(form.get("admins") ?? "").split(/[\n,;]+/).map((v) => v.trim()).filter(Boolean),
+      pictureBase64: picture || null,
+    });
+    revalidatePath("/grupos");
+    revalidatePath("/");
+    return { ok: `${result.name} pronto.`, done: result.done, failed: result.failed };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
 }

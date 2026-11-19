@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireWorkspace } from "@/lib/dal";
 import { prisma } from "@/lib/db";
 import { ensureRedirectSlug, getRedirectGroups, redirectPath } from "@/lib/redirect";
+import { listSeries } from "@/lib/groupCreate";
+import { CreateGroup } from "./CreateGroup";
 import { GroupsForm, RefreshButton } from "./GroupsForm";
 import { RedirectLink } from "./RedirectLink";
 
@@ -16,9 +18,10 @@ export default async function GruposPage() {
     prisma.moderationSettings.findUnique({ where: { workspaceId: workspace.id } }),
   ]);
   const connected = instance?.status === "open";
-  const [slug, redirect] = await Promise.all([
+  const [slug, redirect, series] = await Promise.all([
     ensureRedirectSlug(workspace.id),
     getRedirectGroups(workspace.id),
+    listSeries(workspace.id),
   ]);
   const base = (process.env.APP_URL || process.env.BETTER_AUTH_URL || "").replace(/\/$/, "");
 
@@ -50,6 +53,7 @@ export default async function GruposPage() {
             />
           )}
           <RefreshButton hasGroups={groups.length > 0} />
+          {groups.length > 0 && <CreateGroup series={series} />}
           {groups.length > 0 && (
             <GroupsForm
               groups={groups.map((g) => ({

@@ -11,6 +11,7 @@ import {
   hostMatchesDomain,
   linkKey,
   normalizeDomain,
+  normalizePhone,
   notifyAlertGroup,
 } from "@/lib/moderation";
 
@@ -149,6 +150,18 @@ export async function addInvite(_prev: FormState, form: FormData): Promise<FormS
   return done("Convite autorizado.");
 }
 
+export async function addSender(_prev: FormState, form: FormData): Promise<FormState> {
+  const { workspace } = await requireWorkspace();
+  const phone = normalizePhone(String(form.get("phone") ?? ""));
+  if (!phone) return { error: "Número inválido. Use DDD e número, ex.: 18 93500-1714" };
+  await prisma.allowedSender.upsert({
+    where: { workspaceId_phone: { workspaceId: workspace.id, phone } },
+    create: { workspaceId: workspace.id, phone },
+    update: {},
+  });
+  return done(`+${phone} adicionado aos números liberados.`);
+}
+
 export async function refreshInvites(): Promise<FormState> {
   const { workspace } = await requireWorkspace();
   const result = await syncInviteLinks(workspace.id);
@@ -161,12 +174,13 @@ export async function refreshInvites(): Promise<FormState> {
     : { ok: `Convites dos ${result.total} grupos moderados atualizados.` };
 }
 
-export async function removeRule(kind: "blocked" | "allowed" | "invite", id: string) {
+export async function removeRule(kind: "blocked" | "allowed" | "invite" | "sender", id: string) {
   const { workspace } = await requireWorkspace();
   // o filtro por workspaceId impede apagar item de outra conta
   const where = { id, workspaceId: workspace.id };
   if (kind === "blocked") await prisma.blockedDomain.deleteMany({ where });
   if (kind === "allowed") await prisma.allowedDomain.deleteMany({ where });
+  if (kind === "sender") await prisma.allowedSender.deleteMany({ where });
   // convite automático volta sozinho; só o adicionado à mão pode ser removido
   if (kind === "invite") await prisma.allowedInvite.deleteMany({ where: { ...where, groupJid: null } });
   done();

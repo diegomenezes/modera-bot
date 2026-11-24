@@ -2,17 +2,18 @@ import Link from "next/link";
 import { requireWorkspace } from "@/lib/dal";
 import { prisma } from "@/lib/db";
 import { ensureSettings } from "@/lib/moderation";
-import { addAllowed, addBlocked, addInvite, removeRule } from "./actions";
+import { addAllowed, addBlocked, addInvite, addSender, removeRule } from "./actions";
 import { AddItemForm, RefreshInvitesButton, SettingsForm, TestAlertButton } from "./forms";
 
 export default async function RegrasPage() {
   const { workspace } = await requireWorkspace();
   const settings = await ensureSettings(workspace.id);
   const where = { workspaceId: workspace.id };
-  const [blocked, allowed, invites, moderatedCount] = await Promise.all([
+  const [blocked, allowed, invites, senders, moderatedCount] = await Promise.all([
     prisma.blockedDomain.findMany({ where, orderBy: { domain: "asc" } }),
     prisma.allowedDomain.findMany({ where, orderBy: { domain: "asc" } }),
     prisma.allowedInvite.findMany({ where, orderBy: [{ groupName: "asc" }, { createdAt: "desc" }] }),
+    prisma.allowedSender.findMany({ where, orderBy: { createdAt: "asc" } }),
     prisma.group.count({ where: { ...where, moderated: true } }),
   ]);
 
@@ -43,6 +44,15 @@ export default async function RegrasPage() {
       add: addInvite,
       items: invites.map((i) => ({ id: i.id, label: i.url, auto: i.groupJid ? (i.groupName ?? "grupo moderado") : null })),
       empty: "Nenhum convite autorizado.",
+    },
+    {
+      kind: "sender" as const,
+      title: "Números liberados",
+      help: "Quem está aqui pode mandar qualquer link em todos os grupos moderados, mesmo sem ser admin. Os links dessas pessoas também ficam liberados por 72 horas.",
+      placeholder: "ex.: 18 93500-1714",
+      add: addSender,
+      items: senders.map((s) => ({ id: s.id, label: `+${s.phone}`, auto: null as string | null })),
+      empty: "Nenhum número liberado.",
     },
   ];
 
@@ -89,7 +99,7 @@ export default async function RegrasPage() {
           {list.kind === "invite" && <RefreshInvitesButton />}
           <AddItemForm
             action={list.add}
-            name={list.kind === "invite" ? "url" : "domain"}
+            name={list.kind === "invite" ? "url" : list.kind === "sender" ? "phone" : "domain"}
             placeholder={list.placeholder}
           />
           <ul className="space-y-2 text-sm">

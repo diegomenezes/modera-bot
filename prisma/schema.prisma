@@ -97,6 +97,7 @@ model Workspace {
   blocked               BlockedDomain[]
   allowed               AllowedDomain[]
   invites               AllowedInvite[]
+  senders               AllowedSender[]
   adminLinks            AdminLink[]
   unknown               UnknownLink[]
   events                ModerationEvent[]
@@ -193,6 +194,19 @@ model AllowedInvite {
 
   @@unique([workspaceId, url])
   @@unique([workspaceId, groupJid])
+}
+
+// Número que pode mandar qualquer link, mesmo sem ser admin do grupo.
+// lid é o código interno do WhatsApp (@lid), guardado quando chega junto com o telefone.
+model AllowedSender {
+  id          String    @id @default(cuid())
+  workspaceId String
+  phone       String
+  lid         String?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, phone])
 }
 
 // Link que um admin do grupo mandou: fica liberado por 72 horas.

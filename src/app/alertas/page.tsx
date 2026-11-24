@@ -4,6 +4,28 @@ import { senderRanks } from "@/lib/moderation";
 import { clearEvents, decideUnknown, deleteEvent } from "./actions";
 import { ConfirmButton } from "@/components/ConfirmButton";
 
+// Abre o link em outra aba. Só http(s), para não virar javascript: ou parecido.
+function OutLinks({ urls }: { urls: string[] }) {
+  return (
+    <>
+      {urls.map((url) => {
+        const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+        return (
+          <a
+            key={url}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="block break-all underline"
+          >
+            {url}
+          </a>
+        );
+      })}
+    </>
+  );
+}
+
 const ACTION_LABEL: Record<string, string> = {
   notified: "Avisado",
   deleted: "Apagado",
@@ -82,7 +104,7 @@ export default async function AlertasPage() {
                 <p className="text-[var(--ink-soft)]">
                   {link.groupName} · {link.author} · {when(link.lastSeenAt)}
                 </p>
-                <p className="break-all">{link.sample}</p>
+                <OutLinks urls={[link.sample]} />
                 <details>
                   <summary className="cursor-pointer text-[var(--ink-soft)]">Mensagem</summary>
                   <pre className="mt-2 whitespace-pre-wrap rounded-xl bg-[#fffdf8] p-3">
@@ -152,7 +174,9 @@ export default async function AlertasPage() {
               <p className="text-sm text-[var(--ink-soft)]">
                 {event.author} · {when(event.messageAt)}
               </p>
-              <p className="break-all text-sm">{event.matchedUrl}</p>
+              <div className="text-sm">
+                <OutLinks urls={event.matchedUrl.split("\n").filter(Boolean)} />
+              </div>
               <pre className="whitespace-pre-wrap rounded-xl bg-[#fffdf8] p-3 text-sm">{event.text}</pre>
               {event.detail && <p className="text-sm text-[var(--warn)]">{event.detail}</p>}
             </article>

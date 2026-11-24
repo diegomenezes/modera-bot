@@ -182,8 +182,14 @@ export async function fetchGroups(name: string, botPhone: string | null): Promis
 
 // --- Moderação (portado do gerador de reels, por instância) ---
 
-function canonicalJid(value: string): string {
+export function canonicalJid(value: string): string {
   return value.trim().toLowerCase().replace(/:\d+(?=@)/, "");
+}
+
+// Número brasileiro com e sem o 9 vira a mesma chave (o WhatsApp usa as duas formas).
+export function phoneKey(digits: string): string {
+  const br = digits.length === 13 && digits.startsWith("55") && digits[4] === "9";
+  return `tel:${br ? digits.slice(0, 4) + digits.slice(5) : digits}`;
 }
 
 type AdminCacheEntry = { until: number; ids: Set<string> | null; phones: Map<string, string> };
@@ -207,15 +213,26 @@ export async function fetchGroupAdminIds(
   if (cached && cached.until > Date.now()) return cached.ids;
 
   try {
-    const res = await call(
-      `/group/findGroupInfos/${encodeURIComponent(instance)}?groupJid=${encodeURIComponent(remoteJid)}`,
-      { timeoutMs: 15000 },
-    );
-    if (!res.ok) throw new Error(res.text);
+    const path = `/group/findGroupInfos/${encodeURIComponent(instance)}?groupJid=${encodeURIComponent(remoteJid)}`;
+    let participants: Record<string, unknown>[] = [];
+    let lastError = "";
+    // Uma segunda tentativa: vários grupos pedem a lista ao mesmo tempo quando o admin posta em todos.
+    for (let attempt = 0; attempt < 2 && participants.length === 0; attempt++) {
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 2000));
+      try {
+        const res = await call(path, { timeoutMs: 20000 });
+        if (!res.ok) throw new Error(res.text);
+        participants = readParticipants(res.json);
+        if (participants.length === 0) lastError = "lista de participantes vazia";
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+      }
+    }
+    if (participants.length === 0) throw new Error(lastError);
 
     const ids = new Set<string>();
     const phones = new Map<string, string>();
-    for (const participant of readParticipants(res.json)) {
+    for (const participant of participants) {
       const phone =
         phoneDigits(participant.phoneNumber) ||
         phoneDigits(participant.jid) ||
@@ -227,13 +244,25 @@ export async function fetchGroupAdminIds(
       const role = participant.admin;
       if (role === "admin" || role === "superadmin" || role === true) {
         for (const key of keys) ids.add(key);
+        if (phone) ids.add(phoneKey(phone));
       }
     }
     adminCache.set(cacheKey, { until: Date.now() + 10 * 60_000, ids, phones });
     return ids;
-  } catch {
-    adminCache.set(cacheKey, { until: Date.now() + 60_000, ids: null, phones: new Map() });
-    return null;
+  } catch (error) {
+    // Falhou (ex.: Connection Closed). Usa a última lista boa em vez de tratar o admin como membro comum.
+    const stale = cached?.ids ? cached : null;
+    console.error(
+      `[moderacao] ${instance} não consegui ler os admins de ${remoteJid}` +
+        (stale ? " (usando a lista anterior)" : "") +
+        `: ${error instanceof Error ? error.message.slice(0, 200) : error}`,
+    );
+    adminCache.set(cacheKey, {
+      until: Date.now() + 60_000,
+      ids: stale?.ids ?? null,
+      phones: stale?.phones ?? new Map(),
+    });
+    return stale?.ids ?? null;
   }
 }
 
@@ -260,9 +289,12 @@ export function senderIsGroupAdmin(
   adminIds: Set<string>,
   candidates: Array<string | null | undefined>,
 ): boolean {
-  return candidates.some(
-    (value) => typeof value === "string" && adminIds.has(canonicalJid(value)),
-  );
+  return candidates.some((value) => {
+    if (typeof value !== "string") return false;
+    if (adminIds.has(canonicalJid(value))) return true;
+    const phone = phoneDigits(value);
+    return !!phone && adminIds.has(phoneKey(phone));
+  });
 }
 
 export async function sendTextMessage(

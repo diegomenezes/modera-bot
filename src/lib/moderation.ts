@@ -1,9 +1,12 @@
 import "server-only";
 import { prisma } from "./db";
 import {
+  canonicalJid,
   deleteMessageForEveryone,
   fetchGroupAdminIds,
+  phoneDigits,
   phoneForSender,
+  phoneKey,
   senderIsGroupAdmin,
   sendTextMessage,
 } from "./evolution";
@@ -355,6 +358,32 @@ async function recordUnknownLinks(
   return fresh;
 }
 
+// Número digitado na tela vira só dígitos com o 55 na frente.
+export function normalizePhone(raw: string): string | null {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
+  return digits.length >= 12 && digits.length <= 15 ? digits : null;
+}
+
+// Remetente na lista de números liberados? Compara o telefone (com ou sem o 9) ou o @lid.
+async function senderIsAllowed(workspaceId: string, message: IncomingMessage) {
+  const rows = await prisma.allowedSender.findMany({ where: { workspaceId } });
+  if (rows.length === 0) return false;
+  const candidates = [message.participant, message.participantAlt].filter(
+    (value): value is string => !!value,
+  );
+  const phone = candidates.map(phoneDigits).find((value) => !!value) ?? null;
+  const lid = candidates.map(canonicalJid).find((value) => value.endsWith("@lid")) ?? null;
+  const row = rows.find(
+    (item) => (phone && phoneKey(item.phone) === phoneKey(phone)) || (lid && item.lid === lid),
+  );
+  if (!row) return false;
+  if (phone && lid && row.lid !== lid) {
+    await prisma.allowedSender.update({ where: { id: row.id }, data: { lid } }).catch(() => {});
+  }
+  return true;
+}
+
 function nextAttemptAfter(attempts: number): Date | null {
   const minutes = RETRY_DELAYS_MIN[attempts - 1];
   return minutes ? new Date(Date.now() + minutes * 60_000) : null;
@@ -377,6 +406,10 @@ export async function processMessage(ctx: Context, message: IncomingMessage) {
   if (!workspace?.active || !settings.enabled) return { ignored: true as const };
 
   if (message.fromMe) {
+    await rememberAdminLinks(workspaceId, urls);
+    return { ignored: true as const };
+  }
+  if (await senderIsAllowed(workspaceId, message)) {
     await rememberAdminLinks(workspaceId, urls);
     return { ignored: true as const };
   }
@@ -412,6 +445,12 @@ export async function processMessage(ctx: Context, message: IncomingMessage) {
     }
   }
   if (matched.length === 0 && unknown.length === 0) return { ignored: true as const };
+  if (matched.length > 0) {
+    console.log(
+      `[moderacao] ${workspaceId} link bloqueado de não admin: participant=${message.participant} ` +
+        `alt=${message.participantAlt} admins=${adminIds ? adminIds.size : "falhou"}`,
+    );
+  }
 
   const phone = phoneForSender(ctx.instance, message.remoteJid, [
     message.participantAlt,

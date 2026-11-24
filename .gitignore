@@ -43,3 +43,5 @@ next-env.d.ts
 
 # postgres de desenvolvimento
 /.pgdata
+
+.claude/settings.local.json
